@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Ollama Local Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+/* --- CSS Variables and Base Styles --- */
+:root {
+  --font-family-main: 'Inconsolata', 'Consolas', 'Menlo', monospace;
+  --font-size-base: 14px;
+  --font-size-sm: 12px;
+  --font-size-lg: 16px;
+
+  /* Dark Mode Palette */
+  --bg-primary: #1A1A1B;       /* Main background - very dark grey */
+  --bg-secondary: #272729;     /* Sidebar, input areas - dark grey */
+  --bg-tertiary: #3A3A3C;      /* Bubbles, list items, hover - medium dark grey */
+  --bg-accent: #007AFF;        /* Accent color (Apple's blue) */
+  --bg-accent-hover: #0056b3;  /* Darker accent for hover */
+  --bg-code: #1E1E1E;          /* Slightly different for code blocks if needed, or use secondary */
+  --bg-thinking: #2C2C2E;      /* Thinking bubble background */
+  --bg-error: #5C2B29;         /* Error background */
+  --bg-success: #2A4B3A;       /* Success feedback background (e.g., copied) */
+
+  --text-primary: #E0E0E0;     /* Main text - light grey */
+  --text-secondary: #A0A0A0;   /* Secondary text, placeholders - medium grey */
+  --text-accent: #FFFFFF;       /* White text on accent backgrounds */
+  --text-code: #D4D4D4;         /* Code text */
+  --text-link: var(--bg-accent);
+  --text-error: #FFB8B3;        /* Error text color */
+  --text-success: #B3FFD9;      /* Success text color */
+
+  --border-color: #404040;     /* Border color - visible but not harsh */
+  --border-color-strong: #555555; /* For more prominent borders if needed */
+  --border-radius-base: 8px;
+  --border-radius-sm: 5px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.4);
+
+  --scrollbar-thumb: #555;
+  --scrollbar-track: var(--bg-secondary);
+
+  --padding-xs: 0.25rem; /* 4px */
+  --padding-sm: 0.5rem;  /* 8px */
+  --padding-md: 0.75rem; /* 12px */
+  --padding-lg: 1rem;    /* 16px */
+
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 60px; /* Example for future collapse */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  display: flex; /* Lays out sidebar and main-content horizontally */
+  overflow: hidden; /* Prevent body scrollbars if children are managed */
+}
+
+/* --- Scrollbar Styling --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6a6a6a;
+}
+
+/* --- Sidebar Styling --- */
+#sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0; /* Prevent sidebar from shrinking */
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: var(--padding-lg);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  height: 100vh; /* Ensure full viewport height */
+  overflow-y: auto; /* Allow sidebar content to scroll if needed */
+}
+
+#sidebar a[style*='localllm'] { /* Targeting the logo */
+  font-size: 20px !important; /* Overriding inline style for consistency */
+  color: var(--text-secondary) !important;
+  padding: var(--padding-lg) !important;
+  text-align: center !important;
+  margin-bottom: var(--padding-lg);
+  display: block;
+  text-decoration: none;
+}
+
+#new-conversation-btn {
+  width: 100%;
+  padding: var(--padding-md);
+  margin-bottom: var(--padding-lg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-base);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+#new-conversation-btn:hover {
+  background-color: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent-hover);
+}
+
+#conversation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1; /* Allows the list to take available space in the sidebar */
+  overflow-y: auto; /* Scroll within the list if it overflows */
+  font-size: var(--font-size-base);
+}
+
+.conversation-item-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--padding-md);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--padding-sm);
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px solid transparent; /* Placeholder for hover/active border */
+}
+.conversation-item-container:hover {
+  background-color: var(--bg-accent-hover);
+  color: var(--text-accent);
+}
+.conversation-item-container.active {
+  background-color: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent-hover);
+  font-weight: bold;
+}
+
+.conversation-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  padding-right: var(--padding-sm); /* Space before model/actions */
+}
+.conversation-model {
+  font-size: var(--font-size-sm);
+  margin-left: var(--padding-sm);
+  opacity: 0.8;
+}
+.conversation-actions button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-left: var(--padding-xs);
+  font-size: var(--font-size-lg); /* Make icons slightly larger */
+  padding: var(--padding-xs);
+  border-radius: var(--border-radius-sm);
+}
+.conversation-item-container:hover .conversation-actions button,
+.conversation-item-container.active .conversation-actions button {
+  color: var(--text-accent); /* Match text color on hover/active */
+}
+.conversation-actions button:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle hover for individual buttons */
+}
+
+.rename-input {
+  flex-grow: 1;
+  padding: var(--padding-xs) var(--padding-sm);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-primary); /* Match primary background */
+  color: var(--text-primary);
+}
+
+/* --- Main Content Area --- */
+#main-content {
+  flex: 1; /* Allows main content to take remaining width beside sidebar */
+  display: flex;
+  flex-direction: column; /* Stacks header, chat-log, input-area vertically */
+  height: 100vh; /* Full viewport height */
+  overflow: hidden; /* Prevent this container from showing scrollbars; children manage their own */
+  background-color: var(--bg-primary);
+}
+
+/* Chat Header */
+#chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--padding-sm) var(--padding-lg);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+#current-conversation-title {
+  font-weight: bold;
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 160px); /* Adjust based on button width */
+}
+#clear-conversation-btn {
+  padding: var(--padding-sm) var(--padding-md);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+#clear-conversation-btn:hover {
+  background-color: #C82333; /* Keep a distinct danger color */
+  color: var(--text-accent);
+  border-color: #C82333;
+}
+
+/* Chat Log - CRUCIAL FOR LAYOUT */
+#chat-log {
+  flex: 1 1 auto; /* Allows chat log to grow and shrink, taking available vertical space */
+  overflow-y: auto; /* Enables vertical scrolling FOR CHAT MESSAGES THEMSELVES */
+  padding: var(--padding-lg);
+  background: var(--bg-primary); /* Match primary background */
+}
+
+/* Messages and Bubbles */
+.message {
+  margin-bottom: var(--padding-lg);
+  display: flex;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+  position: relative;
+}
+@keyframes fadeIn { to { opacity: 1; } }
+
+.message.user { justify-content: flex-end; }
+.message.assistant { justify-content: flex-start; }
+
+.bubble {
+  max-width: 80%; /* Responsive max width */
+  padding: var(--padding-md) var(--padding-lg);
+  border-radius: var(--border-radius-base);
+  line-height: 1.6;
+  word-wrap: break-word;
+  box-shadow: var(--shadow-sm);
+  white-space: pre-wrap; /* Preserve whitespace and newlines */
+  position: relative; /* For copy button */
+}
+.message.user .bubble {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  border-bottom-right-radius: var(--border-radius-sm); /* Slightly different rounding */
+}
+.message.assistant .bubble {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-bottom-left-radius: var(--border-radius-sm);
+}
+
+/* Thinking Bubble */
+.message.thinking .bubble {
+  background-color: var(--bg-thinking);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: var(--padding-md);
+  font-size: var(--font-size-sm);
+  max-width: 100%;
+  max-height: 100px; /* Increased slightly */
+  overflow-y: auto;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+.message.assistant.thinking .bubble pre { /* if pre appears in thinking */
+  font-size: 10px; /* smaller */
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* Code Blocks */
+.bubble pre {
+  background-color: var(--bg-code);
+  color: var(--text-code);
+  padding: var(--padding-md);
+  border-radius: var(--border-radius-sm);
+  overflow-x: auto;
+  font-family: var(--font-family-main); /* Ensure monospace for code */
+  font-size: var(--font-size-base); /* Consistent font size */
+  margin: var(--padding-sm) 0;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+.copy-code-btn {
+  position: absolute;
+  top: var(--padding-xs);
+  right: var(--padding-xs);
+  background-color: var(--bg-secondary); /* Slightly different from pre */
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px; /* Smaller padding */
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: 10px;
+  opacity: 0.6;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+.bubble pre:hover .copy-code-btn { opacity: 1; }
+.copy-code-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.copy-code-btn.copied {
+  background-color: var(--bg-success);
+  color: var(--text-accent); /* Or a dark text if bg_success is light */
+  opacity: 1;
+  border-color: var(--bg-success);
+}
+.bubble code:not(pre code) { /* Inline code */
+  background-color: var(--bg-secondary);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-family: var(--font-family-main);
+  color: var(--text-code);
+  border: 1px solid var(--border-color);
+}
+
+/* Input Area */
+#input-area {
+  flex-shrink: 0; /* Prevent input area from shrinking */
+  display: flex;
+  gap: var(--padding-sm);
+  padding: var(--padding-md) var(--padding-lg);
+  font-family: var(--font-family-main);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+#prompt, #model-select {
+  padding: var(--padding-md);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--border-radius-base);
+  background-color: var(--bg-primary); /* Match main bg or slightly lighter */
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+#prompt::placeholder {
+  color: var(--text-secondary);
+}
+#prompt {
+  flex: 1 1 auto;
+  resize: none; /* Keep as none for this layout */
+}
+#model-select {
+  flex: 0 0 auto; /* Don't grow, shrink as needed */
+  max-width: 200px; /* Prevent model select from becoming too wide */
+}
+#send {
+  flex: 0 0 auto;
+  padding: var(--padding-md) var(--padding-lg);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  border: none;
+  border-radius: var(--border-radius-base);
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+#send:hover { background: var(--bg-accent-hover); }
+#send:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+/* Blinking cursor for streaming response */
+.message.assistant:not(.thinking) .bubble.streaming-response::after {
+  content: '▋';
+  animation: blink 1s infinite;
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--text-accent); /* Use accent color for visibility */
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 200px; /* Narrower sidebar */
+    --font-size-base: 13px; /* Slightly smaller base font */
+  }
+
+  .bubble {
+    max-width: 90%; /* Allow bubbles to be a bit wider */
+  }
+
+  #input-area {
+    flex-direction: column; /* Stack input elements */
+  }
+  #model-select {
+    max-width: 100%; /* Allow model select to take full width when stacked */
+    margin-bottom: var(--padding-sm);
+  }
+  #prompt {
+    min-height: 60px; /* Ensure prompt has some height when stacked */
+  }
+  #send {
+    width: 100%; /* Full width send button */
+  }
+
+  #current-conversation-title {
+    max-width: calc(100% - 100px); /* Adjust for smaller clear button */
+  }
+}
+
+@media (max-width: 480px) {
+  /* Removed empty :root ruleset as per lint recommendation */
+  /* Example: if you wanted to hide sidebar on very small screens without JS for toggle:
+  #sidebar {
+    display: none;
+  }
+  */
+  /* For this example, we'll just make it narrower to avoid JS for a toggle */
+   #sidebar {
+     width: 160px;
+   }
+
+
+  #chat-header {
+    padding: var(--padding-sm);
+  }
+  #current-conversation-title {
+    font-size: var(--font-size-base);
+  }
+  #clear-conversation-btn {
+    font-size: 10px; /* Smaller text */
+    padding: var(--padding-xs) var(--padding-sm);
+  }
+}
+
+</style>
+</head>
+<body>
+<div id="sidebar">
+<a style='font-size:20px;color:#777;padding:20px;text-align:center;'>localllm</a>
+<button id="new-conversation-btn">New Conversation</button>
+<ul id="conversation-list">
+</ul>
+</div>
+<div id="main-content">
+<div id="chat-header">
+  <span id="current-conversation-title">New Conversation</span>
+  <button id="clear-conversation-btn">Clear Messages</button>
+</div>
+<div id="chat-log"></div>
+<form id="input-area">
+<select id="model-select" required>
+<option value="">Loading models...</option>
+</select>
+<input type="text" id="prompt" placeholder="Ask something..." autocomplete="off" required />
+<button id="send" type="submit">Send</button>
+</form>
+</div>
+
+<script>
+// --- Configuration ---
+const OLLAMA_BASE_URL = "http://localhost:11434";
+const CONVO_LIST_KEY = 'ollama_convos';
+let conversations = {convlist:[], convunique:{}, lastmodel:""}; // convunique is largely redundant if ix maps to array index
+try
+  {
+  let convoraw = localStorage.getItem(CONVO_LIST_KEY);
+  if (convoraw == null)
+    {
+    localStorage.setItem(CONVO_LIST_KEY, JSON.stringify(conversations));
+    }
+  else
+    {
+    conversations = JSON.parse(convoraw);
+    // Ensure new properties exist
+    conversations.convlist.forEach(convo => {
+        if (!convo.modelName && convo.model) { // Add modelName if missing
+            // This is a simple fallback, might not find the exact name if models changed
+            convo.modelName = convo.model.split(':')[0];
+        }
+    });
+    // Regenerate convunique and ensure ix consistency
+    const newConvUnique = {};
+    conversations.convlist.forEach((convo, index) => {
+        convo.ix = index; // Ensure ix is the current array index
+        newConvUnique[index] = convo;
+    });
+    conversations.convunique = newConvUnique;
+    }
+  }
+catch (e)
+  {
+  console.error("Error loading conversations from localStorage:", e);
+  localStorage.setItem(CONVO_LIST_KEY, JSON.stringify(conversations));
+  conversations = {convlist:[], convunique:{}, lastmodel:""}; // Reset if error
+  }
+let currentConvo = null; // Will be set on new convo or load convo
+
+// --- DOM elements ---
+const chatLog = document.getElementById("chat-log");
+const promptInput = document.getElementById("prompt");
+const form = document.getElementById("input-area");
+const modelSelect = document.getElementById("model-select");
+const sendButton = document.getElementById("send");
+const sidebar = document.getElementById("sidebar");
+const conversationList = document.getElementById("conversation-list");
+const newConversationBtn = document.getElementById("new-conversation-btn");
+// --- FEATURE: Chat Header DOM Elements START ---
+const currentConversationTitleEl = document.getElementById("current-conversation-title");
+const clearConversationBtn = document.getElementById("clear-conversation-btn");
+// --- FEATURE: Chat Header DOM Elements END ---
+
+// --- Conversation state ---
+let isLoading = false;
+
+async function fetchModels()
+  {
+  try
+    {
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+    if (!response.ok)
+      {
+      modelSelect.innerHTML = '<option value="">Error loading models</option>';
+      throw new Error(`Failed to fetch models: ${response.status}`);
+      }
+    const data = await response.json();
+    const models = data.models || [];
+    modelSelect.innerHTML = '<option value="">Select a model...</option>';
+    if (models.length === 0)
+      {
+      modelSelect.innerHTML = '<option value="">No models found</option>';
+      return;
+      }
+    models.forEach(model =>
+      {
+      const option = document.createElement("option");
+      option.value = model.model; // store the full model string (e.g. llama2:latest)
+      option.textContent = model.name; // store the friendly name (e.g. Llama 2)
+      modelSelect.appendChild(option);
+      }
+    );
+
+    if (models.length > 0)
+      {
+      if (conversations && conversations.lastmodel != "" && modelSelect.querySelector(`option[value="${conversations.lastmodel}"]`))
+        {
+        modelSelect.value = conversations.lastmodel;
+        }
+      else if (models[0]) // Check if models[0] exists
+        {
+        modelSelect.value = models[0].model;
+        conversations.lastmodel = models[0].model;
+        }
+      }
+    // After models are loaded, initiate a new conversation or load existing
+    if (conversations.convlist.length > 0)
+      {
+      loadConversation(conversations.convlist.length - 1); // Load the last conversation
+      }
+    else
+      {
+      startNewConversation();
+      }
+    renderConversationList();
+    }
+  catch (error)
+    {
+    console.error("Error fetching models:", error);
+    modelSelect.innerHTML = '<option value="">Error loading models</option>';
+      startNewConversation(); // Ensure UI is usable even if models fail to load
+      renderConversationList();
+    }
+  }
+
+document.addEventListener('DOMContentLoaded', fetchModels);
+
+function saveConvo()
+  {
+  // Ensure all convos in convlist have up-to-date modelName if currentConvo does
+  if (currentConvo && currentConvo.modelName && currentConvo.ix !== -1 && conversations.convlist[currentConvo.ix]) {
+    conversations.convlist[currentConvo.ix].modelName = currentConvo.modelName;
+    conversations.convlist[currentConvo.ix].model = currentConvo.model;
+  }
+  localStorage.setItem(CONVO_LIST_KEY, JSON.stringify(conversations));
+  renderConversationList(); // Update sidebar after saving
+  }
+
+function startNewConversation()
+  {
+    const selectedModelValue = modelSelect.value;
+    const selectedModelOption = modelSelect.options[modelSelect.selectedIndex];
+    const selectedModelName = selectedModelOption ? selectedModelOption.text : (selectedModelValue ? selectedModelValue.split(':')[0] : "Unknown Model");
+
+
+  currentConvo = {
+      ix: -1,
+      name: "New Conversation",
+      model: selectedModelValue,
+      modelName: selectedModelName, // FEATURE: Store model name
+      messages: [],
+      tokenct: 0
+    };
+  chatLog.innerHTML = ''; // Clear chat log
+  promptInput.value = '';
+  promptInput.placeholder = "Ask something...";
+  setLoadingState(false);
+  // --- FEATURE: Chat Header Update START ---
+  currentConversationTitleEl.textContent = currentConvo.name;
+  // --- FEATURE: Chat Header Update END ---
+  updateActiveConversationItem();
+  }
+
+function initSaveConvo() // Call this when a new conversation gets its first messages
+  {
+  if (currentConvo.ix === -1) // If it's a brand new, unsaved conversation
+    {
+    currentConvo.ix = conversations.convlist.length; // Assign new index
+    // Update name from first user message if available
+    if (currentConvo.messages.length > 0 && currentConvo.messages[0].role === 'user') {
+        let firstMsg = currentConvo.messages[0].content;
+        currentConvo.name = firstMsg.substring(0, 30) + (firstMsg.length > 30 ? "..." : "");
+    } else {
+        currentConvo.name = "Conversation " + (currentConvo.ix + 1); // Fallback name
+    }
+
+    // Ensure model and modelName are set
+    if (!currentConvo.model && modelSelect.value) {
+        currentConvo.model = modelSelect.value;
+        currentConvo.modelName = modelSelect.options[modelSelect.selectedIndex].text;
+    } else if (currentConvo.model && !currentConvo.modelName) {
+        // Attempt to find model name if only model ID is present
+        const opt = Array.from(modelSelect.options).find(o => o.value === currentConvo.model);
+        currentConvo.modelName = opt ? opt.text : currentConvo.model.split(':')[0];
+    }
+
+    conversations.convlist.push(currentConvo);
+    conversations.convunique[currentConvo.ix] = currentConvo; // convunique might be redundant now
+    }
+  else if (currentConvo.ix >= 0 && currentConvo.ix < conversations.convlist.length) // Existing conversation
+    {
+    conversations.convlist[currentConvo.ix] = currentConvo;
+    conversations.convunique[currentConvo.ix] = currentConvo;
+    }
+  // --- FEATURE: Chat Header Update START ---
+  currentConversationTitleEl.textContent = currentConvo.name;
+  // --- FEATURE: Chat Header Update END ---
+  saveConvo();
+  }
+
+
+function appendMessage(role, content, extraClasses = [])
+  {
+  const wrapper = document.createElement("div");
+  wrapper.className = `message ${role} ${extraClasses.join(' ')}`.trim();
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.innerHTML = formatMessage(content);
+
+  if (role === "user" || role === "assistant")
+    {
+    // Make editable functionality can be complex with markdown, consider removing or simplifying
+    // bubble.contentEditable = "true";
+    // bubble.setAttribute('data-original-content', content);
+    // bubble.addEventListener('blur', function() { /* ... edit logic ... */ });
+    }
+  wrapper.appendChild(bubble);
+  chatLog.appendChild(wrapper);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  // --- FEATURE: Copy Code Button Logic START ---
+  if (role === "assistant" || role === "thinking") { // Also add to thinking if it might contain pre
+    const preBlocks = bubble.querySelectorAll("pre");
+    preBlocks.forEach(pre => {
+        const codeEl = pre.querySelector('code');
+        if (!codeEl) return; // No code element found
+
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "Copy";
+        copyBtn.className = "copy-code-btn";
+        copyBtn.addEventListener("click", () => {
+            navigator.clipboard.writeText(codeEl.innerText)
+                .then(() => {
+                    copyBtn.textContent = "Copied!";
+                    copyBtn.classList.add("copied");
+                    setTimeout(() => {
+                        copyBtn.textContent = "Copy";
+                        copyBtn.classList.remove("copied");
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error("Failed to copy code:", err);
+                    copyBtn.textContent = "Error";
+                     setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
+                });
+        });
+        // Check if pre already has a copy button (e.g. during streaming update)
+        if (!pre.querySelector('.copy-code-btn')) {
+            pre.appendChild(copyBtn);
+        }
+    });
+  }
+  // --- FEATURE: Copy Code Button Logic END ---
+
+
+  if (currentConvo && currentConvo.messages == null) // Should not happen if currentConvo is initialized correctly
+    {
+    initSaveConvo();
+    }
+  // Assign a unique tag for easy retrieval during edits (if re-enabled)
+  if (currentConvo && currentConvo.messages) { // Ensure currentConvo and messages exist
+    bubble.tag = currentConvo.messages.length; // This tag might be problematic if messages are deleted/edited later
+  }
+  return bubble;
+  }
+
+function formatMessage(text) // Basic XSS protection, ensure robustness if used in wider contexts
+  {
+  let escapedText = text.replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, "&apos;");
+
+  // Improved Markdown for code blocks, bold, italics, inline code
+  escapedText = escapedText.replace(/```(\w*)\n([\s\S]*?)```|```([\s\S]*?)```/g, (match, lang, codeWithLang, codeWithoutLang) =>
+    {
+    const code = codeWithLang || codeWithoutLang;
+    // Re-escape inside code block to prevent HTML injection if original text wasn't perfectly clean
+    const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const languageClass = lang ? ` class="language-${lang}"` : "";
+    return `<pre><code${languageClass}>${escapedCode.trim()}</code></pre>`;
+    }
+  );
+  escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  escapedText = escapedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  escapedText = escapedText.replace(/`(.*?)`/g, '<code>$1</code>');
+  return escapedText;
+  }
+
+function setLoadingState(loading)
+  {
+  isLoading = loading;
+  sendButton.disabled = loading;
+  promptInput.disabled = loading;
+  sendButton.textContent = loading ? "Responding" : "Send";
+  }
+
+async function queryOllama(userPrompt)
+  {
+  if (!currentConvo || !currentConvo.model) // Check currentConvo and its model
+    {
+    appendMessage("assistant", "Please select a model first or start a new conversation.");
+    return;
+    }
+
+  setLoadingState(true);
+
+  if (currentConvo.ix === -1 && currentConvo.messages.length === 0) // First message in a new convo
+    {
+    currentConvo.messages.push({ role: "user", content: userPrompt });
+    initSaveConvo(); // This will set name, ix, and save
+    }
+  else
+    {
+    currentConvo.messages.push({ role: "user", content: userPrompt });
+    if (currentConvo.ix === -1) { // Should have been handled, but as a safeguard
+        initSaveConvo();
+    }
+    }
+
+
+  let assistantResponseBubble = null; // Initialize to null
+  let fullAssistantResponse = "";
+  let curAssistantResponse = "";
+
+  try
+    {
+    const query = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+      model: currentConvo.model,
+      messages: currentConvo.messages, // Send the whole history
+      stream: true
+      })
+      };
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, query)
+    if (!response.ok)
+      {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+      }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true)
+      {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true } );
+      let eolIndex;
+      while ((eolIndex = buffer.indexOf('\n')) >= 0)
+        {
+        const line = buffer.substring(0, eolIndex).trim();
+        buffer = buffer.substring(eolIndex + 1);
+        if (line)
+          {
+          try
+            {
+            const parsedChunk = JSON.parse(line);
+            if (parsedChunk.message && parsedChunk.message.content)
+              {
+              let contentChunk = parsedChunk.message.content;
+              if (contentChunk === "<think>") // Handle special <think> tags
+                {
+                  if (assistantResponseBubble && !assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                      // If a normal bubble exists, remove it before showing thinking
+                      assistantResponseBubble.parentElement.remove();
+                  }
+                assistantResponseBubble = appendMessage("thinking", ""); // No specific content for thinking bubble itself
+                assistantResponseBubble.classList.add("streaming-response"); // Though not strictly streaming content
+                sendButton.textContent = "Thinking...";
+                  curAssistantResponse = ""; // Reset current response for thinking
+                }
+              else if (contentChunk === "</think>")
+                {
+                  if (assistantResponseBubble && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                      assistantResponseBubble.parentElement.remove(); // Remove thinking bubble
+                  }
+                assistantResponseBubble = appendMessage("assistant", ""); // Start new assistant bubble
+                assistantResponseBubble.classList.add("streaming-response");
+                curAssistantResponse = ""; // Reset current response
+                sendButton.textContent = "Responding...";
+                }
+              else // Regular content chunk
+                {
+                if (!assistantResponseBubble || assistantResponseBubble.parentElement.classList.contains('thinking')) // If no bubble or was thinking bubble
+                  {
+                      if (assistantResponseBubble && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                         assistantResponseBubble.parentElement.remove(); // Remove old thinking bubble
+                      }
+                  assistantResponseBubble = appendMessage("assistant", "");
+                  assistantResponseBubble.classList.add("streaming-response");
+                      curAssistantResponse = ""; // Reset if it was a thinking bubble
+                  }
+                if (curAssistantResponse === "" && contentChunk.trim() === "") {/* Skip leading whitespace if empty */}
+                else
+                  {
+                  curAssistantResponse += contentChunk;
+                  assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
+                    // Re-add copy buttons if the bubble content is re-rendered
+                    const preBlocks = assistantResponseBubble.querySelectorAll("pre");
+                    preBlocks.forEach(pre => {
+                        if (pre.querySelector('.copy-code-btn')) return; // Don't add if already exists
+                        const codeEl = pre.querySelector('code');
+                        if (!codeEl) return;
+                        const copyBtn = document.createElement("button");
+                        copyBtn.textContent = "Copy";
+                        copyBtn.className = "copy-code-btn";
+                        copyBtn.addEventListener("click", () => { /* ... copy logic ... */ }); // Simplified, use main copy logic
+                        pre.appendChild(copyBtn);
+                    });
+                  assistantResponseBubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                  chatLog.scrollTop = chatLog.scrollHeight;
+                  }
+                }
+              fullAssistantResponse += contentChunk;
+              } else if (parsedChunk.done && parsedChunk.total_duration) {
+                // This is the final summary chunk from Ollama stream
+                // Update token count based on actual eval_count if available
+                if (parsedChunk.eval_count) {
+                    // This is context window token count, not just response.
+                    // currentConvo.tokenct = parsedChunk.eval_count;
+                }
+            }
+            }
+          catch (e)
+            {
+            console.warn("Failed to parse JSON chunk line:", line, e);
+            }
+          }
+        }
+      }
+
+    if (buffer.trim()) // Process any remaining buffer content
+      {
+      try
+        {
+        const parsedChunk = JSON.parse(buffer.trim());
+        if (parsedChunk.message && parsedChunk.message.content)
+          {
+          let contentChunk = parsedChunk.message.content;
+          fullAssistantResponse += contentChunk;
+          curAssistantResponse += contentChunk;
+          if (assistantResponseBubble) { // Check if bubble exists
+              assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
+          }
+          }
+        }
+      catch(e)
+        {
+        console.warn("Failed to parse final JSON buffer:", buffer.trim(), e);
+        }
+      }
+    }
+  catch (err)
+    {
+    console.error("Error querying Ollama:", err);
+    if (assistantResponseBubble) { // Check if bubble exists before setting its innerHTML
+        assistantResponseBubble.innerHTML = formatMessage(`Error: ${err.message}`);
+    } else { // If no bubble, create one for the error
+        assistantResponseBubble = appendMessage("assistant", `Error: ${err.message}`);
+    }
+    fullAssistantResponse = `Error: ${err.message}`; // Ensure error is saved
+    }
+  finally
+    {
+    if (assistantResponseBubble) { // Ensure bubble exists
+        assistantResponseBubble.classList.remove("streaming-response");
+    }
+    if (fullAssistantResponse && fullAssistantResponse !== "<think>" && fullAssistantResponse !== "</think>")
+      {
+      // Remove think/endthink tags from the final saved response
+      const cleanFullResponse = fullAssistantResponse.replace(/<\/?think>/g, '').trim();
+      if (cleanFullResponse) {
+        currentConvo.messages.push(
+          { role: "assistant", content: cleanFullResponse }
+        );
+      }
+      }
+    currentConvo.tokenct = estimateTokensInConversation(currentConvo.messages);
+    promptInput.placeholder = "Ask something.. (" + currentConvo.tokenct + " tokens so far)";
+    initSaveConvo(); // Save conversation after response (it also calls saveConvo and renderConversationList)
+    setLoadingState(false);
+    promptInput.focus();
+    }
+  }
+
+function estimateTokensInConversation(messageHistory)
+  {
+  if (!Array.isArray(messageHistory)) return 0;
+  let totalCharacters = 0;
+  messageHistory.forEach(message => {
+    if (message && typeof message.content === 'string') totalCharacters += message.content.length;
+  });
+  return Math.ceil(totalCharacters / 4); // Rough estimate
+  }
+
+// Edit bubble functions (currently disabled in appendMessage, can be re-enabled if desired)
+// function handleUserBubbleEdit(bubbleElement, newContent) { /* ... */ }
+// function handleAssistantBubbleEdit(bubbleElement, newContent) { /* ... */ }
+
+// --- Conversation List Management ---
+function renderConversationList()
+  {
+  conversationList.innerHTML = ''; // Clear existing list
+  for (var i = conversations.convlist.length - 1; i >= 0; i--) // Iterate backwards to show newest first
+    {
+    const convo = conversations.convlist[i];
+    if (!convo) continue; // Skip if convo is undefined (e.g. after a bad delete)
+
+    const container = document.createElement("div");
+    container.className = "conversation-item-container";
+    container.dataset.index = convo.ix; // Use the stored ix
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "conversation-name";
+    let displayName = convo.name || `Conversation ${convo.ix + 1}`;
+    // --- FEATURE: Indicate Model in Sidebar START ---
+    const modelDisplayName = convo.modelName || (convo.model ? convo.model.split(':')[0] : 'N/A');
+    nameSpan.textContent = `${displayName}`;
+    const modelSpan = document.createElement("span");
+    modelSpan.className = "conversation-model";
+    modelSpan.textContent = `(${modelDisplayName})`;
+    nameSpan.appendChild(modelSpan);
+    // --- FEATURE: Indicate Model in Sidebar END ---
+
+    nameSpan.addEventListener('click', () => loadConversation(convo.ix));
+    container.appendChild(nameSpan);
+
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "conversation-actions";
+
+    // --- FEATURE: Rename Conversation START ---
+    const renameBtn = document.createElement("button");
+    renameBtn.innerHTML = "&#9998;"; // Pencil icon
+    renameBtn.title = "Rename conversation";
+    renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent loadConversation
+        promptRenameConversation(convo.ix, nameSpan, container);
+    });
+    actionsDiv.appendChild(renameBtn);
+    // --- FEATURE: Rename Conversation END ---
+
+    // --- FEATURE: Delete Conversation Button START ---
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerHTML = "&times;"; // X icon
+    deleteBtn.title = "Delete conversation";
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent loadConversation from firing
+        deleteConversation(convo.ix);
+    });
+    actionsDiv.appendChild(deleteBtn);
+    // --- FEATURE: Delete Conversation Button END ---
+    container.appendChild(actionsDiv);
+    conversationList.appendChild(container);
+    }
+  updateActiveConversationItem();
+  }
+
+// --- FEATURE: Rename Conversation START ---
+function promptRenameConversation(convoIndex, nameSpanElement, containerElement) {
+    const currentName = conversations.convlist[convoIndex].name;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'rename-input'; // Add class for styling
+
+    // Temporarily hide the model span during rename
+    const modelSpan = nameSpanElement.querySelector('.conversation-model');
+    if (modelSpan) modelSpan.style.display = 'none';
+
+    nameSpanElement.innerHTML = ''; // Clear the span
+    nameSpanElement.appendChild(input);
+    input.focus();
+    input.select();
+
+    const saveRename = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+            conversations.convlist[convoIndex].name = newName;
+            if (currentConvo && currentConvo.ix === convoIndex) {
+                currentConvo.name = newName;
+                currentConversationTitleEl.textContent = newName;
+            }
+            saveConvo(); // This will re-render the list
+        } else {
+            // If name didn't change or is empty, revert to old display
+            nameSpanElement.textContent = currentName;
+            if (modelSpan) {
+                nameSpanElement.appendChild(modelSpan); // Re-add model span
+                modelSpan.style.display = ''; // Make it visible again
+            }
+        }
+         // Ensure the container is clickable again if it was part of the nameSpan
+        if (!containerElement.hasAttribute('listenerOnClick')) { // Avoid adding multiple listeners
+            nameSpanElement.addEventListener('click', () => loadConversation(convoIndex));
+            containerElement.setAttribute('listenerOnClick','true');
+        }
+    };
+
+    input.addEventListener('blur', saveRename);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            input.blur(); // Triggers saveRename
+        } else if (e.key === 'Escape') {
+            input.value = currentName; // Revert
+            input.blur(); // Triggers saveRename with old name
+        }
+    });
+}
+// --- FEATURE: Rename Conversation END ---
+
+// --- FEATURE: Delete Conversation Logic START ---
+function deleteConversation(indexToDelete) {
+    const convoName = conversations.convlist[indexToDelete]?.name || `Conversation ${indexToDelete + 1}`;
+    if (!confirm(`Are you sure you want to delete "${convoName}"?`)) {
+        return;
+    }
+
+    conversations.convlist.splice(indexToDelete, 1);
+
+    // Re-index conversations and rebuild convunique
+    const newConvUnique = {};
+    conversations.convlist.forEach((convo, newIndex) => {
+        convo.ix = newIndex;
+        newConvUnique[newIndex] = convo;
+    });
+    conversations.convunique = newConvUnique;
+
+    if (currentConvo && currentConvo.ix === indexToDelete) {
+        // If current conversation was deleted, load the newest or start fresh
+        if (conversations.convlist.length > 0) {
+            loadConversation(conversations.convlist.length - 1);
+        } else {
+            startNewConversation();
+        }
+    } else if (currentConvo && currentConvo.ix > indexToDelete) {
+        // If current convo was after the deleted one, its index needs update
+        currentConvo.ix--;
+    }
+    saveConvo(); // This also calls renderConversationList
+}
+// --- FEATURE: Delete Conversation Logic END ---
+
+
+function loadConversation(index)
+  {
+  if (isLoading) return;
+  if (index < 0 || index >= conversations.convlist.length) {
+    console.warn("Attempted to load invalid conversation index:", index);
+    if (conversations.convlist.length > 0) { // Fallback to last convo
+        loadConversation(conversations.convlist.length - 1);
+    } else {
+        startNewConversation(); // Or start new if no convos left
+    }
+    return;
+  }
+
+  currentConvo = conversations.convlist[index];
+  chatLog.innerHTML = ''; // Clear current chat
+  (currentConvo.messages || []).forEach((message, i) => // Ensure messages array exists
+    {
+    const bubble = appendMessage(message.role, message.content);
+    // bubble.tag = i; // Tagging for edit, ensure edit logic handles it if re-enabled
+    }
+  );
+  promptInput.placeholder = `Ask something.. (${currentConvo.tokenct || 0} tokens so far)`;
+  if (currentConvo.model && modelSelect.querySelector(`option[value="${currentConvo.model}"]`)) {
+    modelSelect.value = currentConvo.model;
+  } else if (conversations.lastmodel && modelSelect.querySelector(`option[value="${conversations.lastmodel}"]`)) {
+    modelSelect.value = conversations.lastmodel; // Fallback to last used model
+    currentConvo.model = conversations.lastmodel;
+    currentConvo.modelName = modelSelect.options[modelSelect.selectedIndex]?.text || currentConvo.model.split(':')[0];
+  } else if (modelSelect.options.length > 1) { // More than "Select a model..."
+    modelSelect.selectedIndex = 1; // Fallback to first available model
+    currentConvo.model = modelSelect.value;
+    currentConvo.modelName = modelSelect.options[1]?.text || currentConvo.model.split(':')[0];
+  }
+
+
+  // --- FEATURE: Chat Header Update START ---
+  currentConversationTitleEl.textContent = currentConvo.name;
+  // --- FEATURE: Chat Header Update END ---
+  updateActiveConversationItem();
+  chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+function updateActiveConversationItem()
+  {
+  document.querySelectorAll('.conversation-item-container').forEach(item =>
+    {
+    item.classList.remove('active');
+    }
+  );
+  if (currentConvo && currentConvo.ix !== -1 && currentConvo.ix < conversations.convlist.length) // Check index validity
+    {
+    const activeItem = document.querySelector(`.conversation-item-container[data-index="${currentConvo.ix}"]`);
+    if (activeItem)
+      {
+      activeItem.classList.add('active');
+      }
+    }
+  }
+
+// --- Event Listeners ---
+form.addEventListener("submit", async (e) =>
+  {
+  e.preventDefault();
+  if (isLoading) return;
+  const promptText = promptInput.value.trim(); // Renamed to avoid conflict
+  if (!promptText) return;
+
+  // Ensure currentConvo is initialized
+  if (!currentConvo) startNewConversation();
+
+  appendMessage("user", promptText);
+  promptInput.value = "";
+  promptInput.focus();
+
+  await queryOllama(promptText);
+  }
+);
+
+// --- FEATURE: Keyboard Shortcut for Sending START ---
+promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+});
+// --- FEATURE: Keyboard Shortcut for Sending END ---
+
+modelSelect.addEventListener("change", (e) =>
+  {
+  const newModel = e.target.value;
+  const newModelName = e.target.options[e.target.selectedIndex].text;
+
+  if (!currentConvo) startNewConversation(); // Initialize if null
+
+  if (currentConvo.model !== newModel)
+    {
+    const oldModelName = currentConvo.modelName || currentConvo.model || "no model";
+    appendMessage("thinking", `Model switched from ${oldModelName} to ${newModelName}`); // "thinking" type for system messages
+    currentConvo.model = newModel;
+    currentConvo.modelName = newModelName; // FEATURE: Store model name
+    conversations.lastmodel = newModel; // Update last selected model globally
+    if (currentConvo.ix !== -1) { // If it's an existing, saved conversation
+        initSaveConvo(); // This will save the updated currentConvo (with new model) to the list
+    } else {
+        // For a new, unsaved conversation, just update its properties.
+        // It will be fully saved by initSaveConvo() when the first message is sent.
+        // However, we should save `conversations.lastmodel`.
+        localStorage.setItem(CONVO_LIST_KEY, JSON.stringify(conversations)); // Save just the global state
+    }
+    }
+  }
+);
+
+newConversationBtn.addEventListener('click', startNewConversation);
+
+// --- FEATURE: Clear Current Conversation Messages START ---
+clearConversationBtn.addEventListener('click', () => {
+    if (!currentConvo) return;
+    if (currentConvo.messages && currentConvo.messages.length > 0) {
+        if (confirm(`Are you sure you want to clear all messages from "${currentConvo.name || 'this conversation'}"? This cannot be undone.`)) {
+            currentConvo.messages = [];
+            currentConvo.tokenct = 0;
+            chatLog.innerHTML = ''; // Clear the visual chat log
+            promptInput.placeholder = "Ask something.. (0 tokens so far)";
+            if (currentConvo.ix !== -1) { // If it's a saved conversation
+                initSaveConvo(); // Re-save it (empty)
+            }
+            // No need to re-render list unless name changes, but saveConvo in initSaveConvo does.
+        }
+    } else {
+        alert("Conversation is already empty.");
+    }
+});
+// --- FEATURE: Clear Current Conversation Messages END ---
+
+</script>
+</body>
+</html>
