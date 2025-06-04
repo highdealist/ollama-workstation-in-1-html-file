@@ -62,7 +62,7 @@ html, body {
   font-size: var(--font-size-base);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  display: flex; /* Lays out sidebar and main-content horizontally */
+  display: flex; /* Lays out sidebar, main-content, and right-sidebar horizontally */
   overflow: hidden; /* Prevent body scrollbars if children are managed */
 }
 
@@ -488,6 +488,141 @@ html, body {
   color: var(--text-error);
   border: 1px solid var(--text-error);
 }
+
+/* --- Right Sidebar Styling --- */
+#right-sidebar {
+  width: 300px; /* Example width */
+  height: 100vh; /* Match main content/sidebar height */
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: var(--padding-lg);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* Prevent from shrinking */
+}
+
+#right-sidebar-tabs {
+  display: flex;
+  margin-bottom: var(--padding-md);
+}
+
+#right-sidebar-tabs .sidebar-tab-button {
+  padding: var(--padding-sm) var(--padding-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-grow: 1;
+  text-align: center;
+  border-radius: var(--border-radius-sm);
+  margin-right: var(--padding-xs); /* Small gap between buttons */
+  transition: background-color 0.2s, color 0.2s;
+}
+#right-sidebar-tabs .sidebar-tab-button:last-child {
+  margin-right: 0;
+}
+
+#right-sidebar-tabs .sidebar-tab-button:hover {
+  background-color: var(--bg-accent-hover);
+  color: var(--text-accent);
+}
+
+#right-sidebar-tabs .sidebar-tab-button.active {
+  background-color: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent-hover);
+}
+
+#right-sidebar-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex; /* To make panels take full height if needed */
+  flex-direction: column;
+}
+
+#right-sidebar-content .sidebar-panel {
+  display: none; /* Hidden by default */
+  padding: var(--padding-sm);
+  /* border: 1px solid var(--border-color); Removed for now, let's see how it looks */
+  border-radius: var(--border-radius-sm);
+  flex-grow: 1; /* Allow panel to take available space */
+}
+
+#right-sidebar-content .sidebar-panel.active {
+  display: block;
+}
+
+/* Styling for form elements in Batch Settings panel */
+#batch-settings-panel div {
+  margin-bottom: var(--padding-md);
+}
+
+#batch-settings-panel label {
+  display: block;
+  margin-bottom: var(--padding-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+#batch-settings-panel input[type="number"],
+#batch-settings-panel textarea {
+  width: 100%;
+  padding: var(--padding-sm);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+}
+
+#batch-settings-panel textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+#batch-settings-panel input[type="checkbox"] {
+  margin-right: var(--padding-sm);
+  vertical-align: middle;
+}
+/* Align checkbox label better */
+#batch-settings-panel input[type="checkbox"] + label {
+  display: inline;
+  font-size: var(--font-size-base); /* Match other input text */
+  color: var(--text-primary);
+}
+
+/* --- Right Sidebar Collapsible Styling --- */
+.right-sidebar-collapsed {
+  display: none !important; /* Important to override other display properties if they exist */
+}
+
+#toggle-right-sidebar-btn {
+  margin-left: var(--padding-sm);
+  padding: var(--padding-sm) var(--padding-md); /* Consistent with other header buttons */
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-sm); /* Consistent */
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+#toggle-right-sidebar-btn:hover {
+  background-color: var(--bg-accent-hover);
+  color: var(--text-accent);
+}
+
+/* Adjust chat header title width if toggle button is present */
+#chat-header #current-conversation-title {
+  /* Max width needs to account for clear button AND toggle button */
+  /* Original was calc(100% - 160px) for one button. Two buttons ~220px? Adjust as needed. */
+  /* Increased from 220 to 230 to give a bit more space */
+  max-width: calc(100% - 230px);
+}
 </style>
 </head>
 <body>
@@ -500,7 +635,10 @@ html, body {
 <div id="main-content">
 <div id="chat-header">
   <span id="current-conversation-title">New Conversation</span>
-  <button id="clear-conversation-btn">Clear Messages</button>
+  <div> <!-- Wrapper for buttons on the right -->
+    <button id="clear-conversation-btn">Clear Messages</button>
+    <button id="toggle-right-sidebar-btn" title="Toggle Settings">&rsaquo;</button> <!-- › -->
+  </div>
 </div>
 <div id="chat-log"></div>
 <form id="input-area">
@@ -510,6 +648,51 @@ html, body {
 <input type="text" id="prompt" placeholder="Ask something..." autocomplete="off" required />
 <button id="send" type="submit">Send</button>
 </form>
+</div>
+<div id="right-sidebar">
+  <div id="right-sidebar-tabs">
+    <button id="batch-settings-tab" class="sidebar-tab-button active" data-tab-target="#batch-settings-panel">Batch Settings</button>
+    <button id="tab2-tab" class="sidebar-tab-button" data-tab-target="#tab2-panel">Tab 2</button>
+    <button id="tab3-tab" class="sidebar-tab-button" data-tab-target="#tab3-panel">Tab 3</button>
+    <button id="tab4-tab" class="sidebar-tab-button" data-tab-target="#tab4-panel">Tab 4</button>
+  </div>
+  <div id="right-sidebar-content">
+    <div id="batch-settings-panel" class="sidebar-panel active">
+      <div>
+        <label for="temp-input">Temperature:</label>
+        <input type="number" id="temp-input" name="temp-input" step="0.1" value="0.7">
+      </div>
+      <div>
+        <label for="top-k-input">Top K:</label>
+        <input type="number" id="top-k-input" name="top-k-input" step="1" value="40">
+      </div>
+      <div>
+        <label for="top-p-input">Top P:</label>
+        <input type="number" id="top-p-input" name="top-p-input" step="0.01" value="0.9">
+      </div>
+      <div>
+        <label for="system-prompt-input">System Prompt:</label>
+        <textarea id="system-prompt-input" name="system-prompt-input" rows="3"></textarea>
+      </div>
+      <div>
+        <input type="checkbox" id="temp-random-checkbox" name="temp-random-checkbox">
+        <label for="temp-random-checkbox">Temperature Randomization</label>
+      </div>
+      <div>
+        <label for="num-outputs-input">Number of Outputs:</label>
+        <input type="number" id="num-outputs-input" name="num-outputs-input" step="1" value="1" min="1">
+      </div>
+    </div>
+    <div id="tab2-panel" class="sidebar-panel">
+      <p>Tab 2 Content</p>
+    </div>
+    <div id="tab3-panel" class="sidebar-panel">
+      <p>Tab 3 Content</p>
+    </div>
+    <div id="tab4-panel" class="sidebar-panel">
+      <p>Tab 4 Content</p>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -831,215 +1014,373 @@ function setLoadingState(loading)
 
 async function queryOllama(userPrompt)
   {
-  if (!currentConvo || !currentConvo.model) // Check currentConvo and its model
+  if (!currentConvo || !currentConvo.model)
     {
     appendMessage("assistant", "Please select a model first or start a new conversation.");
     return;
     }
 
-  setLoadingState(true);
+    // Read values from Batch Settings panel (moved to top of function as per plan)
+    const temperatureInput = document.getElementById('temp-input');
+    const topKInput = document.getElementById('top-k-input');
+    const topPInput = document.getElementById('top-p-input');
+    const systemPromptInput = document.getElementById('system-prompt-input');
+    const randomizeTemperatureCheckbox = document.getElementById('temp-random-checkbox');
+    const numOutputsInput = document.getElementById('num-outputs-input');
 
-  if (currentConvo.ix === -1 && currentConvo.messages.length === 0) // First message in a new convo
+    const systemPrompt = systemPromptInput ? systemPromptInput.value.trim() : "";
+    const randomizeTemperature = randomizeTemperatureCheckbox ? randomizeTemperatureCheckbox.checked : false;
+    const numOutputs = numOutputsInput ? (parseInt(numOutputsInput.value) || 1) : 1;
+
+    const ollamaOptions = {};
+    if (temperatureInput && temperatureInput.value !== "" && !isNaN(parseFloat(temperatureInput.value))) {
+      ollamaOptions.temperature = parseFloat(temperatureInput.value);
+    } else {
+      ollamaOptions.temperature = 0.7; // Default if not set or invalid
+    }
+    if (topKInput && topKInput.value !== "" && !isNaN(parseInt(topKInput.value))) {
+      ollamaOptions.top_k = parseInt(topKInput.value);
+    }
+    if (topPInput && topPInput.value !== "" && !isNaN(parseFloat(topPInput.value))) {
+      ollamaOptions.top_p = parseFloat(topPInput.value);
+    }
+
+  // setLoadingState(true); // Moved inside single/batch logic
+
+  if (currentConvo.ix === -1 && currentConvo.messages.length === 0)
     {
     currentConvo.messages.push({ role: "user", content: userPrompt });
-    initSaveConvo(); // This will set name, ix, and save
+    initSaveConvo();
     }
   else
     {
-    currentConvo.messages.push({ role: "user", content: userPrompt });
-    if (currentConvo.ix === -1) { // Should have been handled, but as a safeguard
+    // Check if the last message is the same as the current userPrompt to avoid double-adding on retry/edit
+    if (currentConvo.messages.length === 0 || currentConvo.messages[currentConvo.messages.length -1].role !== 'user' || currentConvo.messages[currentConvo.messages.length -1].content !== userPrompt ) {
+        currentConvo.messages.push({ role: "user", content: userPrompt });
+    }
+    if (currentConvo.ix === -1) {
         initSaveConvo();
     }
     }
 
+if (numOutputs <= 1) {
+    // --- SINGLE OUTPUT LOGIC ---
+    setLoadingState(true);
 
-  let assistantResponseBubble = null; // Initialize to null
-  let fullAssistantResponse = "";
-  let curAssistantResponse = "";
-
-  try
-    {
-    const query = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-      model: currentConvo.model,
-      messages: currentConvo.messages, // Send the whole history
-      stream: true
-      })
-      };
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, query)
-    if (!response.ok)
-      {
-      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-      }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true)
-      {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true } );
-      let eolIndex;
-      while ((eolIndex = buffer.indexOf('\n')) >= 0)
-        {
-        const line = buffer.substring(0, eolIndex).trim();
-        buffer = buffer.substring(eolIndex + 1);
-        if (line)
-          {
-          try
-            {
-            const parsedChunk = JSON.parse(line);
-            if (parsedChunk.message && parsedChunk.message.content)
-              {
-              let contentChunk = parsedChunk.message.content;
-              if (contentChunk === "<think>") // Handle special <think> tags
-                {
-                  if (assistantResponseBubble && !assistantResponseBubble.parentElement.classList.contains('thinking')) {
-                      // If a normal bubble exists, remove it before showing thinking
-                      assistantResponseBubble.parentElement.remove();
-                  }
-                assistantResponseBubble = appendMessage("thinking", ""); // No specific content for thinking bubble itself
-                assistantResponseBubble.classList.add("streaming-response"); // Though not strictly streaming content
-                sendButton.textContent = "Thinking...";
-                  curAssistantResponse = ""; // Reset current response for thinking
-                }
-              else if (contentChunk === "</think>")
-                {
-                  if (assistantResponseBubble && assistantResponseBubble.parentElement.classList.contains('thinking')) {
-                      assistantResponseBubble.parentElement.remove(); // Remove thinking bubble
-                  }
-                assistantResponseBubble = appendMessage("assistant", ""); // Start new assistant bubble
-                assistantResponseBubble.classList.add("streaming-response");
-                curAssistantResponse = ""; // Reset current response
-                sendButton.textContent = "Responding...";
-                }
-              else // Regular content chunk
-                {
-                if (!assistantResponseBubble || assistantResponseBubble.parentElement.classList.contains('thinking')) // If no bubble or was thinking bubble
-                  {
-                      if (assistantResponseBubble && assistantResponseBubble.parentElement.classList.contains('thinking')) {
-                         assistantResponseBubble.parentElement.remove(); // Remove old thinking bubble
-                      }
-                  assistantResponseBubble = appendMessage("assistant", "");
-                  assistantResponseBubble.classList.add("streaming-response");
-                      curAssistantResponse = ""; // Reset if it was a thinking bubble
-                  }
-                if (curAssistantResponse === "" && contentChunk.trim() === "") {/* Skip leading whitespace if empty */}
-                else
-                  {
-                  curAssistantResponse += contentChunk;
-                  assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
-                    // Re-add copy buttons if the bubble content is re-rendered
-                    const preBlocks = assistantResponseBubble.querySelectorAll("pre");
-                    preBlocks.forEach(pre => {
-                        if (pre.querySelector('.copy-code-btn')) return; // Don't add if already exists
-                        const codeEl = pre.querySelector('code');
-                        if (!codeEl) return;
-                        const copyBtn = document.createElement("button");
-                        copyBtn.textContent = "Copy";
-                        copyBtn.className = "copy-code-btn";
-                        copyBtn.addEventListener("click", () => { /* ... copy logic ... */ }); // Simplified, use main copy logic
-                        pre.appendChild(copyBtn);
-                    });
-                  assistantResponseBubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                  chatLog.scrollTop = chatLog.scrollHeight;
-                  }
-                }
-              fullAssistantResponse += contentChunk;
-              } else if (parsedChunk.done && parsedChunk.total_duration) {
-                // This is the final summary chunk from Ollama stream
-                // Update token count based on actual eval_count if available
-                if (parsedChunk.eval_count) {
-                    // This is context window token count, not just response.
-                    // currentConvo.tokenct = parsedChunk.eval_count;
-                }
+    const messagesForApiCall = [...currentConvo.messages];
+    if (systemPrompt) {
+        if (messagesForApiCall.length > 0 && messagesForApiCall[0].role === 'system') {
+            if (messagesForApiCall[0].content !== systemPrompt) { // Only update if different
+                messagesForApiCall[0] = { role: "system", content: systemPrompt };
             }
-            }
-          catch (e)
-            {
-            console.warn("Failed to parse JSON chunk line:", line, e);
-            }
-          }
+        } else {
+            messagesForApiCall.unshift({ role: "system", content: systemPrompt });
         }
-      }
-
-    if (buffer.trim()) // Process any remaining buffer content
-      {
-      try
-        {
-        const parsedChunk = JSON.parse(buffer.trim());
-        if (parsedChunk.message && parsedChunk.message.content)
-          {
-          let contentChunk = parsedChunk.message.content;
-          fullAssistantResponse += contentChunk;
-          curAssistantResponse += contentChunk;
-          if (assistantResponseBubble) { // Check if bubble exists
-              assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
-          }
-          }
+    } else { // No system prompt, ensure none is at the start of the array for API call
+        if (messagesForApiCall.length > 0 && messagesForApiCall[0].role === 'system') {
+            messagesForApiCall.shift();
         }
-      catch(e)
-        {
-        console.warn("Failed to parse final JSON buffer:", buffer.trim(), e);
-        }
-      }
     }
-  catch (err)
-    {
-    console.error("Error querying Ollama:", err);
-    const bubbleErrorClasses = ['error-bubble'];
-    if (assistantResponseBubble) {
-        assistantResponseBubble.innerHTML = formatMessage(`Error: ${err.message}`);
-        // Ensure existing bubble gets error styling if it was mid-stream and not already an error
-        let bubbleNeedsErrorClass = true;
-        bubbleErrorClasses.forEach(cls => {
-            if (assistantResponseBubble.classList.contains(cls)) {
-                bubbleNeedsErrorClass = false;
-            }
+
+    const queryBody = {
+        model: currentConvo.model,
+        messages: messagesForApiCall,
+        stream: true,
+    };
+    if (Object.keys(ollamaOptions).length > 0) { // Add options if they exist
+      queryBody.options = ollamaOptions;
+    }
+
+
+    let assistantResponseBubble = null;
+    let fullAssistantResponse = "";
+    let curAssistantResponse = "";
+
+    try {
+        const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(queryBody)
         });
-        if (bubbleNeedsErrorClass) {
-            bubbleErrorClasses.forEach(cls => assistantResponseBubble.classList.add(cls));
+
+        if (!response.ok) {
+            const errorText = await response.text(); // Try to get more details
+            throw new Error(`Ollama API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        // Clear thinking styles from wrapper if present
-        // and ensure bubble doesn't have streaming-response if it's now a static error.
-        if (assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')) {
-            assistantResponseBubble.parentElement.classList.remove('thinking');
-            // Reset bubble classes to ensure no thinking-specific bubble styles remain
-            assistantResponseBubble.className = 'bubble';
-            bubbleErrorClasses.forEach(cls => assistantResponseBubble.classList.add(cls));
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) { // Main streaming loop for single response
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let eolIndex;
+            while ((eolIndex = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.substring(0, eolIndex).trim();
+                buffer = buffer.substring(eolIndex + 1);
+                if (line) {
+                    try {
+                        const parsedChunk = JSON.parse(line);
+                        if (parsedChunk.message && parsedChunk.message.content) {
+                            let contentChunk = parsedChunk.message.content;
+                            if (contentChunk === "<think>") {
+                                if (assistantResponseBubble && assistantResponseBubble.parentElement && !assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                                    assistantResponseBubble.parentElement.remove();
+                                }
+                                assistantResponseBubble = appendMessage("thinking", "");
+                                sendButton.textContent = "Thinking...";
+                                curAssistantResponse = "";
+                            } else if (contentChunk === "</think>") {
+                                if (assistantResponseBubble && assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                                    assistantResponseBubble.parentElement.remove();
+                                }
+                                assistantResponseBubble = appendMessage("assistant", "");
+                                if(assistantResponseBubble) assistantResponseBubble.classList.add("streaming-response");
+                                sendButton.textContent = "Responding...";
+                                curAssistantResponse = "";
+                            } else {
+                                if (!assistantResponseBubble || (assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking'))) {
+                                     if (assistantResponseBubble && assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                                         assistantResponseBubble.parentElement.remove();
+                                     }
+                                     assistantResponseBubble = appendMessage("assistant", "");
+                                     if(assistantResponseBubble) assistantResponseBubble.classList.add("streaming-response");
+                                     curAssistantResponse = "";
+                                }
+                                curAssistantResponse += contentChunk;
+                                if(assistantResponseBubble) assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
+                                const preBlocks = assistantResponseBubble ? assistantResponseBubble.querySelectorAll("pre") : [];
+                                preBlocks.forEach(pre => {
+                                    if (pre.querySelector('.copy-code-btn')) return;
+                                    const codeEl = pre.querySelector('code');
+                                    if (!codeEl) return;
+                                    const copyBtn = document.createElement("button"); copyBtn.textContent = "Copy"; copyBtn.className = "copy-code-btn";
+                                    copyBtn.addEventListener("click", () => navigator.clipboard.writeText(codeEl.innerText).then(() => { copyBtn.textContent = "Copied!"; copyBtn.classList.add("copied"); setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.classList.remove("copied"); }, 2000); }).catch(err => { console.error("Failed to copy code:", err); copyBtn.textContent = "Error"; setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000); }) );
+                                    pre.appendChild(copyBtn);
+                                });
+                                if(assistantResponseBubble) assistantResponseBubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                            }
+                            fullAssistantResponse += contentChunk;
+                        } else if (parsedChunk.done && parsedChunk.total_duration) {
+                            // Ollama stream finished
+                        }
+                    } catch (e) { console.warn("Failed to parse JSON chunk (single):", line, e); }
+                }
+            }
         }
-        assistantResponseBubble.classList.remove("streaming-response"); // Error messages are not streaming
-    } else {
-        // For a new error message, pass the class to be applied to the bubble
-        assistantResponseBubble = appendMessage("assistant", `Error: ${err.message}`, [], bubbleErrorClasses);
+        if (buffer.trim()) { // Process any remaining buffer content after stream ends
+            try {
+                const parsedChunk = JSON.parse(buffer.trim());
+                if (parsedChunk.message && parsedChunk.message.content) {
+                    let contentChunk = parsedChunk.message.content;
+                    // Ensure it's not a stray think/endthink tag if it's the only thing left
+                    if (contentChunk !== "<think>" && contentChunk !== "</think>") {
+                        curAssistantResponse += contentChunk;
+                        fullAssistantResponse += contentChunk; // Add to full response
+                        // Update bubble display if it exists and is not a thinking bubble
+                        if (assistantResponseBubble && assistantResponseBubble.parentElement && !assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                             if(assistantResponseBubble) assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
+                        } else if (!assistantResponseBubble && curAssistantResponse) { // If no bubble yet, create one
+                            assistantResponseBubble = appendMessage("assistant", formatMessage(curAssistantResponse));
+                        } else if (assistantResponseBubble && curAssistantResponse) { // If it was a thinking bubble, replace it
+                            if(assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')){
+                                assistantResponseBubble.parentElement.remove();
+                                assistantResponseBubble = appendMessage("assistant", formatMessage(curAssistantResponse));
+                            } else {
+                                // Fallback, though this case should be covered by the first condition
+                                assistantResponseBubble.innerHTML = formatMessage(curAssistantResponse);
+                            }
+                        }
+                    }
+                }
+            } catch(e) { console.warn("Failed to parse final JSON buffer (single):", buffer.trim(), e); }
+        }
+
+    } catch (err) {
+        console.error("Error querying Ollama (single):", err);
+        if (assistantResponseBubble && assistantResponseBubble.parentElement && !assistantResponseBubble.parentElement.classList.contains('thinking')) {
+            if(assistantResponseBubble) assistantResponseBubble.innerHTML = formatMessage(`Error: ${err.message}`);
+            if(assistantResponseBubble) assistantResponseBubble.classList.add('error-bubble');
+        } else {
+             if (assistantResponseBubble && assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+                assistantResponseBubble.parentElement.remove();
+             }
+            appendMessage("assistant", `Error: ${err.message}`, [], ['error-bubble']);
+        }
+        fullAssistantResponse = `Error: ${err.message}`;
+    } finally {
+        if (assistantResponseBubble) assistantResponseBubble.classList.remove("streaming-response");
+        // Save the full response to conversation history
+        const cleanFullResponse = fullAssistantResponse.replace(/<\/?think>/g, '').trim();
+        if (cleanFullResponse) { // Only push if there's actual content
+            currentConvo.messages.push({ role: "assistant", content: cleanFullResponse });
+        }
+        currentConvo.tokenct = estimateTokensInConversation(currentConvo.messages);
+        promptInput.placeholder = "Ask something.. (" + currentConvo.tokenct + " tokens so far)";
+        initSaveConvo();
+        setLoadingState(false);
+        promptInput.focus();
     }
-    fullAssistantResponse = `Error: ${err.message}`;
+
+} else {
+    // --- BATCH OUTPUT LOGIC ---
+    setLoadingState(true);
+    const userPromptForBatch = userPrompt; // Store the original user prompt for batch use
+
+    const promises = [];
+    const allBatchExecutionDetails = []; // To store options like temperature for each item
+
+    for (let i = 0; i < numOutputs; i++) {
+        let currentTemperature = ollamaOptions.temperature; // Start with base or user-set temperature
+        if (randomizeTemperature) {
+            // Generate a random temperature between 0.0 and 1.0, with two decimal places
+            currentTemperature = parseFloat(Math.random().toFixed(2));
+             // Ensure it's within typical bounds, though Ollama might clamp anyway
+            if (currentTemperature > 1.0) currentTemperature = 1.0;
+            if (currentTemperature < 0.0) currentTemperature = 0.0;
+        }
+        // Create a new options object for this specific batch item
+        const batchItemOptions = { ...ollamaOptions, temperature: currentTemperature };
+
+        // Prepare messages for this batch item: system (if any) + user prompt
+        const messagesForBatchItem = [];
+        if (systemPrompt) {
+            messagesForBatchItem.push({ role: "system", content: systemPrompt });
+        }
+        messagesForBatchItem.push({ role: "user", content: userPromptForBatch }); // Use the stored user prompt
+
+        allBatchExecutionDetails.push({ options: batchItemOptions }); // Store for later display
+
+        promises.push(fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: currentConvo.model,
+                messages: messagesForBatchItem,
+                stream: true, // Each batch item will stream individually
+                options: batchItemOptions
+            })
+        }));
     }
-  finally
-    {
-    if (assistantResponseBubble) { // Ensure bubble exists
-        assistantResponseBubble.classList.remove("streaming-response");
+
+    // Process all fetch promises
+    const results = await Promise.allSettled(promises);
+    let allBatchAssistantResponses = []; // To store all successful assistant responses for history
+
+    for (let idx = 0; idx < results.length; idx++) {
+        const result = results[idx];
+        const batchItemNumber = idx + 1;
+        const execDetails = allBatchExecutionDetails[idx]; // Get corresponding execution details
+        const tempDisplay = execDetails.options.temperature.toFixed(2);
+        const initialBubbleText = `Response ${batchItemNumber}/${numOutputs} (Temp: ${tempDisplay}): Loading...`;
+
+        if (result.status === "fulfilled") {
+            const response = result.value; // This is the Response object
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Batch item ${batchItemNumber} API error ${response.status}:`, errorText);
+                appendMessage("assistant", `Error for Response ${batchItemNumber}/${numOutputs}: ${response.statusText} - ${errorText}`, [], ['error-bubble', 'batch-response-item']);
+                allBatchAssistantResponses.push({ role: "assistant", content: `API Error for item ${batchItemNumber}: ${errorText}` });
+                continue; // Move to the next promise result
+            }
+
+            // Create a bubble for this batch item's response
+            let assistantResponseBubble = appendMessage("assistant", initialBubbleText, [], ['batch-response-item']);
+            if(assistantResponseBubble) assistantResponseBubble.classList.add("streaming-response");
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let fullItemResponseContent = ""; // Content for this item's history
+            let currentDisplayContent = ""; // Content for this item's bubble (without prefix)
+
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    let eolIndex;
+                    while ((eolIndex = buffer.indexOf('\n')) >= 0) {
+                        const line = buffer.substring(0, eolIndex).trim();
+                        buffer = buffer.substring(eolIndex + 1);
+                        if (line) {
+                            try {
+                                const parsedChunk = JSON.parse(line);
+                                if (parsedChunk.message && parsedChunk.message.content) {
+                                    let contentChunk = parsedChunk.message.content;
+                                    // Skip think tags for batch display simplicity for now
+                                    if (contentChunk === "<think>" || contentChunk === "</think>") continue;
+
+                                    fullItemResponseContent += contentChunk;
+                                    currentDisplayContent += contentChunk;
+                                    // Update the bubble with the prefix and new content
+                                    if(assistantResponseBubble) assistantResponseBubble.innerHTML = formatMessage(`Response ${batchItemNumber}/${numOutputs} (Temp: ${tempDisplay}): ` + currentDisplayContent);
+                                    // Re-add copy buttons if the bubble content is re-rendered
+                                    const preBlocks = assistantResponseBubble ? assistantResponseBubble.querySelectorAll("pre") : [];
+                                    preBlocks.forEach(pre => {
+                                        if (pre.querySelector('.copy-code-btn')) return;
+                                        const codeEl = pre.querySelector('code');
+                                        if (!codeEl) return;
+                                        const copyBtn = document.createElement("button"); copyBtn.textContent = "Copy"; copyBtn.className = "copy-code-btn";
+                                        copyBtn.addEventListener("click", () => navigator.clipboard.writeText(codeEl.innerText).then(() => { copyBtn.textContent = "Copied!"; copyBtn.classList.add("copied"); setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.classList.remove("copied"); }, 2000); }).catch(err => { console.error("Failed to copy code:", err); copyBtn.textContent = "Error"; setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000); }) );
+                                        pre.appendChild(copyBtn);
+                                    });
+                                    if(assistantResponseBubble) assistantResponseBubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                }
+                            } catch (e) { console.warn("Failed to parse JSON chunk (batch item):", line, e); }
+                        }
+                    }
+                }
+                 // Process any remaining buffer content for this item
+                 if (buffer.trim()) {
+                    try {
+                       const parsedChunk = JSON.parse(buffer.trim());
+                       if (parsedChunk.message && parsedChunk.message.content) {
+                            let contentChunk = parsedChunk.message.content;
+                            if (contentChunk !== "<think>" && contentChunk !== "</think>") { // Skip think tags
+                                fullItemResponseContent += contentChunk;
+                                currentDisplayContent += contentChunk;
+                            }
+                       }
+                    } catch(e) { console.warn("Failed to parse final JSON buffer (batch item):", buffer.trim(), e); }
+                }
+
+                // Final update for this item's bubble
+                if(assistantResponseBubble) assistantResponseBubble.innerHTML = formatMessage(`Response ${batchItemNumber}/${numOutputs} (Temp: ${tempDisplay}): ` + currentDisplayContent);
+                if(assistantResponseBubble) assistantResponseBubble.classList.remove("streaming-response");
+                const cleanItemResponse = fullItemResponseContent.replace(/<\/?think>/g, '').trim();
+                if (cleanItemResponse) { // Add to history if contentful
+                    allBatchAssistantResponses.push({ role: "assistant", content: cleanItemResponse });
+                }
+
+            } catch (streamError) {
+                console.error(`Streaming error for batch item ${batchItemNumber}:`, streamError);
+                if(assistantResponseBubble) {
+                    assistantResponseBubble.innerHTML = formatMessage(`Response ${batchItemNumber}/${numOutputs} (Temp: ${tempDisplay}): Error during streaming - ${streamError.message}`);
+                    assistantResponseBubble.classList.add('error-bubble');
+                    assistantResponseBubble.classList.remove("streaming-response");
+                }
+                allBatchAssistantResponses.push({role: "assistant", content: `Streaming Error for item ${batchItemNumber}: ${streamError.message}`});
+            }
+
+        } else { // Promise was rejected (e.g., network error before fetch completes)
+            console.error(`Batch item ${batchItemNumber} fetch failed:`, result.reason);
+            appendMessage("assistant", `Fetch Error for Response ${batchItemNumber}/${numOutputs}: ${result.reason.message}`, [], ['error-bubble', 'batch-response-item']);
+            allBatchAssistantResponses.push({role: "assistant", content: `Fetch Error for item ${batchItemNumber}: ${result.reason.message}`});
+        }
     }
-    if (fullAssistantResponse && fullAssistantResponse !== "<think>" && fullAssistantResponse !== "</think>")
-      {
-      // Remove think/endthink tags from the final saved response
-      const cleanFullResponse = fullAssistantResponse.replace(/<\/?think>/g, '').trim();
-      if (cleanFullResponse) {
-        currentConvo.messages.push(
-          { role: "assistant", content: cleanFullResponse }
-        );
-      }
-      }
+
+    // After all batch items are processed, update conversation history
+    currentConvo.messages.push(...allBatchAssistantResponses);
     currentConvo.tokenct = estimateTokensInConversation(currentConvo.messages);
     promptInput.placeholder = "Ask something.. (" + currentConvo.tokenct + " tokens so far)";
-    initSaveConvo(); // Save conversation after response (it also calls saveConvo and renderConversationList)
+    initSaveConvo();
     setLoadingState(false);
     promptInput.focus();
-    }
+}
   }
 
 function estimateTokensInConversation(messageHistory)
@@ -1335,6 +1676,56 @@ clearConversationBtn.addEventListener('click', () => {
 });
 // --- FEATURE: Clear Current Conversation Messages END ---
 
+// --- Right Sidebar Tab Switching ---
+const sidebarTabButtons = document.querySelectorAll('#right-sidebar-tabs .sidebar-tab-button');
+const sidebarTabPanels = document.querySelectorAll('#right-sidebar-content .sidebar-panel');
+
+sidebarTabButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    const targetPanelId = button.dataset.tabTarget;
+    const targetPanel = document.querySelector(targetPanelId);
+
+    // Remove active class from all buttons and panels
+    sidebarTabButtons.forEach(btn => btn.classList.remove('active'));
+    sidebarTabPanels.forEach(panel => panel.classList.remove('active'));
+
+    // Add active class to the clicked button and its target panel
+    button.classList.add('active');
+    if (targetPanel) {
+      targetPanel.classList.add('active');
+    }
+  });
+});
+// Ensure the default active tab's content is shown
+const initiallyActiveButton = document.querySelector('#right-sidebar-tabs .sidebar-tab-button.active');
+if (initiallyActiveButton) {
+    const initialTargetPanelId = initiallyActiveButton.dataset.tabTarget;
+    if (initialTargetPanelId) { // Check if data-tab-target exists
+        const initialActivePanel = document.querySelector(initialTargetPanelId);
+        if (initialActivePanel && !initialActivePanel.classList.contains('active')) {
+            sidebarTabPanels.forEach(panel => panel.classList.remove('active'));
+            initialActivePanel.classList.add('active');
+        }
+    }
+}
+
+// --- Right Sidebar Collapse Toggle ---
+const toggleRightSidebarBtn = document.getElementById('toggle-right-sidebar-btn');
+const rightSidebar = document.getElementById('right-sidebar');
+
+if (toggleRightSidebarBtn && rightSidebar) {
+  toggleRightSidebarBtn.addEventListener('click', () => {
+    rightSidebar.classList.toggle('right-sidebar-collapsed');
+    // Optionally change button text/icon
+    if (rightSidebar.classList.contains('right-sidebar-collapsed')) {
+      toggleRightSidebarBtn.innerHTML = '&lsaquo;'; // ‹
+      toggleRightSidebarBtn.title = "Show Settings";
+    } else {
+      toggleRightSidebarBtn.innerHTML = '&rsaquo;'; // ›
+      toggleRightSidebarBtn.title = "Hide Settings";
+    }
+  });
+}
 </script>
 </body>
 </html>
