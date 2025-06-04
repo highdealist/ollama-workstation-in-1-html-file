@@ -62,7 +62,7 @@ html, body {
   font-size: var(--font-size-base);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  display: flex; /* Lays out sidebar and main-content horizontally */
+  display: flex; /* Lays out sidebar, main-content, and right-sidebar horizontally */
   overflow: hidden; /* Prevent body scrollbars if children are managed */
 }
 
@@ -488,6 +488,141 @@ html, body {
   color: var(--text-error);
   border: 1px solid var(--text-error);
 }
+
+/* --- Right Sidebar Styling --- */
+#right-sidebar {
+  width: 300px; /* Example width */
+  height: 100vh; /* Match main content/sidebar height */
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: var(--padding-lg);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* Prevent from shrinking */
+}
+
+#right-sidebar-tabs {
+  display: flex;
+  margin-bottom: var(--padding-md);
+}
+
+#right-sidebar-tabs .sidebar-tab-button {
+  padding: var(--padding-sm) var(--padding-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-grow: 1;
+  text-align: center;
+  border-radius: var(--border-radius-sm);
+  margin-right: var(--padding-xs); /* Small gap between buttons */
+  transition: background-color 0.2s, color 0.2s;
+}
+#right-sidebar-tabs .sidebar-tab-button:last-child {
+  margin-right: 0;
+}
+
+#right-sidebar-tabs .sidebar-tab-button:hover {
+  background-color: var(--bg-accent-hover);
+  color: var(--text-accent);
+}
+
+#right-sidebar-tabs .sidebar-tab-button.active {
+  background-color: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent-hover);
+}
+
+#right-sidebar-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex; /* To make panels take full height if needed */
+  flex-direction: column;
+}
+
+#right-sidebar-content .sidebar-panel {
+  display: none; /* Hidden by default */
+  padding: var(--padding-sm);
+  /* border: 1px solid var(--border-color); Removed for now, let's see how it looks */
+  border-radius: var(--border-radius-sm);
+  flex-grow: 1; /* Allow panel to take available space */
+}
+
+#right-sidebar-content .sidebar-panel.active {
+  display: block;
+}
+
+/* Styling for form elements in Batch Settings panel */
+#batch-settings-panel div {
+  margin-bottom: var(--padding-md);
+}
+
+#batch-settings-panel label {
+  display: block;
+  margin-bottom: var(--padding-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+#batch-settings-panel input[type="number"],
+#batch-settings-panel textarea {
+  width: 100%;
+  padding: var(--padding-sm);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+}
+
+#batch-settings-panel textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+#batch-settings-panel input[type="checkbox"] {
+  margin-right: var(--padding-sm);
+  vertical-align: middle;
+}
+/* Align checkbox label better */
+#batch-settings-panel input[type="checkbox"] + label {
+  display: inline;
+  font-size: var(--font-size-base); /* Match other input text */
+  color: var(--text-primary);
+}
+
+/* --- Right Sidebar Collapsible Styling --- */
+.right-sidebar-collapsed {
+  display: none !important; /* Important to override other display properties if they exist */
+}
+
+#toggle-right-sidebar-btn {
+  margin-left: var(--padding-sm);
+  padding: var(--padding-sm) var(--padding-md); /* Consistent with other header buttons */
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-sm); /* Consistent */
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+#toggle-right-sidebar-btn:hover {
+  background-color: var(--bg-accent-hover);
+  color: var(--text-accent);
+}
+
+/* Adjust chat header title width if toggle button is present */
+#chat-header #current-conversation-title {
+  /* Max width needs to account for clear button AND toggle button */
+  /* Original was calc(100% - 160px) for one button. Two buttons ~220px? Adjust as needed. */
+  /* Increased from 220 to 230 to give a bit more space */
+  max-width: calc(100% - 230px);
+}
 </style>
 </head>
 <body>
@@ -500,7 +635,10 @@ html, body {
 <div id="main-content">
 <div id="chat-header">
   <span id="current-conversation-title">New Conversation</span>
-  <button id="clear-conversation-btn">Clear Messages</button>
+  <div> <!-- Wrapper for buttons on the right -->
+    <button id="clear-conversation-btn">Clear Messages</button>
+    <button id="toggle-right-sidebar-btn" title="Toggle Settings">&rsaquo;</button> <!-- › -->
+  </div>
 </div>
 <div id="chat-log"></div>
 <form id="input-area">
@@ -510,6 +648,59 @@ html, body {
 <input type="text" id="prompt" placeholder="Ask something..." autocomplete="off" required />
 <button id="send" type="submit">Send</button>
 </form>
+</div>
+<div id="right-sidebar">
+  <div id="right-sidebar-tabs">
+    <button id="batch-settings-tab" class="sidebar-tab-button active" data-tab-target="#batch-settings-panel">Batch Settings</button>
+    <button id="tab2-tab" class="sidebar-tab-button" data-tab-target="#tab2-panel">Tab 2</button>
+    <button id="tab3-tab" class="sidebar-tab-button" data-tab-target="#tab3-panel">Tab 3</button>
+    <button id="tab4-tab" class="sidebar-tab-button" data-tab-target="#tab4-panel">Tab 4</button>
+  </div>
+  <div id="right-sidebar-content">
+    <div id="batch-settings-panel" class="sidebar-panel active">
+      <div>
+        <label for="temp-input">Temperature:</label>
+        <input type="number" id="temp-input" name="temp-input" step="0.1" value="0.7">
+      </div>
+      <div>
+        <label for="presence-penalty-input">Presence Penalty:</label>
+        <input type="number" id="presence-penalty-input" name="presence-penalty-input" step="0.1" value="0.0">
+      </div>
+      <div>
+        <label for="repetition-penalty-input">Repetition Penalty:</label>
+        <input type="number" id="repetition-penalty-input" name="repetition-penalty-input" step="0.1" value="1.1">
+      </div>
+      <div>
+        <label for="top-k-input">Top K:</label>
+        <input type="number" id="top-k-input" name="top-k-input" step="1" value="40">
+      </div>
+      <div>
+        <label for="top-p-input">Top P:</label>
+        <input type="number" id="top-p-input" name="top-p-input" step="0.01" value="0.9">
+      </div>
+      <div>
+        <label for="system-prompt-input">System Prompt:</label>
+        <textarea id="system-prompt-input" name="system-prompt-input" rows="3"></textarea>
+      </div>
+      <div>
+        <input type="checkbox" id="temp-random-checkbox" name="temp-random-checkbox">
+        <label for="temp-random-checkbox">Temperature Randomization</label>
+      </div>
+      <div>
+        <label for="num-outputs-input">Number of Outputs:</label>
+        <input type="number" id="num-outputs-input" name="num-outputs-input" step="1" value="1" min="1">
+      </div>
+    </div>
+    <div id="tab2-panel" class="sidebar-panel">
+      <p>Tab 2 Content</p>
+    </div>
+    <div id="tab3-panel" class="sidebar-panel">
+      <p>Tab 3 Content</p>
+    </div>
+    <div id="tab4-panel" class="sidebar-panel">
+      <p>Tab 4 Content</p>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1335,6 +1526,56 @@ clearConversationBtn.addEventListener('click', () => {
 });
 // --- FEATURE: Clear Current Conversation Messages END ---
 
+// --- Right Sidebar Tab Switching ---
+const sidebarTabButtons = document.querySelectorAll('#right-sidebar-tabs .sidebar-tab-button');
+const sidebarTabPanels = document.querySelectorAll('#right-sidebar-content .sidebar-panel');
+
+sidebarTabButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    const targetPanelId = button.dataset.tabTarget;
+    const targetPanel = document.querySelector(targetPanelId);
+
+    // Remove active class from all buttons and panels
+    sidebarTabButtons.forEach(btn => btn.classList.remove('active'));
+    sidebarTabPanels.forEach(panel => panel.classList.remove('active'));
+
+    // Add active class to the clicked button and its target panel
+    button.classList.add('active');
+    if (targetPanel) {
+      targetPanel.classList.add('active');
+    }
+  });
+});
+// Ensure the default active tab's content is shown
+const initiallyActiveButton = document.querySelector('#right-sidebar-tabs .sidebar-tab-button.active');
+if (initiallyActiveButton) {
+    const initialTargetPanelId = initiallyActiveButton.dataset.tabTarget;
+    if (initialTargetPanelId) { // Check if data-tab-target exists
+        const initialActivePanel = document.querySelector(initialTargetPanelId);
+        if (initialActivePanel && !initialActivePanel.classList.contains('active')) {
+            sidebarTabPanels.forEach(panel => panel.classList.remove('active'));
+            initialActivePanel.classList.add('active');
+        }
+    }
+}
+
+// --- Right Sidebar Collapse Toggle ---
+const toggleRightSidebarBtn = document.getElementById('toggle-right-sidebar-btn');
+const rightSidebar = document.getElementById('right-sidebar');
+
+if (toggleRightSidebarBtn && rightSidebar) {
+  toggleRightSidebarBtn.addEventListener('click', () => {
+    rightSidebar.classList.toggle('right-sidebar-collapsed');
+    // Optionally change button text/icon
+    if (rightSidebar.classList.contains('right-sidebar-collapsed')) {
+      toggleRightSidebarBtn.innerHTML = '&lsaquo;'; // ‹
+      toggleRightSidebarBtn.title = "Show Settings";
+    } else {
+      toggleRightSidebarBtn.innerHTML = '&rsaquo;'; // ›
+      toggleRightSidebarBtn.title = "Hide Settings";
+    }
+  });
+}
 </script>
 </body>
 </html>
