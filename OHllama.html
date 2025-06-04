@@ -471,6 +471,23 @@ html, body {
   }
 }
 
+/* Error Message Styling */
+.error-message {
+  color: var(--text-error);
+  background-color: var(--bg-error);
+  padding: var(--padding-md);
+  border-radius: var(--border-radius-sm);
+  margin-top: var(--padding-md);
+  margin-bottom: var(--padding-md); /* Added margin bottom for spacing */
+  border: 1px solid var(--text-error);
+  font-size: var(--font-size-sm);
+}
+
+.message.assistant .bubble.error-bubble {
+  background-color: var(--bg-error);
+  color: var(--text-error);
+  border: 1px solid var(--text-error);
+}
 </style>
 </head>
 <body>
@@ -499,7 +516,7 @@ html, body {
 // --- Configuration ---
 const OLLAMA_BASE_URL = "http://localhost:11434";
 const CONVO_LIST_KEY = 'ollama_convos';
-let conversations = {convlist:[], convunique:{}, lastmodel:""}; // convunique is largely redundant if ix maps to array index
+let conversations = {convlist:[], lastmodel:""}; // convunique is largely redundant if ix maps to array index
 try
   {
   let convoraw = localStorage.getItem(CONVO_LIST_KEY);
@@ -517,20 +534,17 @@ try
             convo.modelName = convo.model.split(':')[0];
         }
     });
-    // Regenerate convunique and ensure ix consistency
-    const newConvUnique = {};
+    // Ensure ix consistency
     conversations.convlist.forEach((convo, index) => {
         convo.ix = index; // Ensure ix is the current array index
-        newConvUnique[index] = convo;
     });
-    conversations.convunique = newConvUnique;
     }
   }
 catch (e)
   {
   console.error("Error loading conversations from localStorage:", e);
   localStorage.setItem(CONVO_LIST_KEY, JSON.stringify(conversations));
-  conversations = {convlist:[], convunique:{}, lastmodel:""}; // Reset if error
+  conversations = {convlist:[], lastmodel:""}; // Reset if error
   }
 let currentConvo = null; // Will be set on new convo or load convo
 
@@ -551,29 +565,57 @@ const clearConversationBtn = document.getElementById("clear-conversation-btn");
 // --- Conversation state ---
 let isLoading = false;
 
+// Helper to display model loading errors
+function displayModelError(message) {
+    const existingError = document.getElementById("model-load-error");
+    if (existingError) {
+        existingError.remove();
+    }
+    const errorP = document.createElement("p");
+    errorP.id = "model-load-error";
+    errorP.className = "error-message";
+    errorP.textContent = message;
+    // Try to append below modelSelect, fallback to sidebar
+    if (modelSelect && modelSelect.parentNode) {
+      modelSelect.parentNode.insertBefore(errorP, modelSelect.nextSibling);
+    } else {
+      sidebar.appendChild(errorP); // Fallback to sidebar
+    }
+}
+
 async function fetchModels()
   {
   try
     {
+    // Clear previous error messages if any
+    const existingError = document.getElementById("model-load-error");
+    if (existingError) {
+        existingError.remove();
+    }
+
     const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
     if (!response.ok)
       {
-      modelSelect.innerHTML = '<option value="">Error loading models</option>';
-      throw new Error(`Failed to fetch models: ${response.status}`);
+      const statusText = response.statusText || "Unknown server error";
+      modelSelect.innerHTML = '<option value="">Error loading models</option>'; // Keep basic select fallback
+      // Note: displayModelError will be called in the catch block
+      throw new Error(`Failed to fetch models: ${response.status} ${statusText}`);
       }
     const data = await response.json();
     const models = data.models || [];
-    modelSelect.innerHTML = '<option value="">Select a model...</option>';
+    modelSelect.innerHTML = '<option value="">Select a model...</option>'; // Clear "loading"
     if (models.length === 0)
       {
       modelSelect.innerHTML = '<option value="">No models found</option>';
-      return;
+      // Optionally, display a message using displayModelError if this is considered an error condition
+      // displayModelError("No models found on the Ollama server.");
+      return; // Still return as no models to select
       }
     models.forEach(model =>
       {
       const option = document.createElement("option");
-      option.value = model.model; // store the full model string (e.g. llama2:latest)
-      option.textContent = model.name; // store the friendly name (e.g. Llama 2)
+      option.value = model.model;
+      option.textContent = model.name;
       modelSelect.appendChild(option);
       }
     );
@@ -584,7 +626,7 @@ async function fetchModels()
         {
         modelSelect.value = conversations.lastmodel;
         }
-      else if (models[0]) // Check if models[0] exists
+      else if (models[0])
         {
         modelSelect.value = models[0].model;
         conversations.lastmodel = models[0].model;
@@ -593,7 +635,7 @@ async function fetchModels()
     // After models are loaded, initiate a new conversation or load existing
     if (conversations.convlist.length > 0)
       {
-      loadConversation(conversations.convlist.length - 1); // Load the last conversation
+      loadConversation(conversations.convlist.length - 1);
       }
     else
       {
@@ -604,9 +646,15 @@ async function fetchModels()
   catch (error)
     {
     console.error("Error fetching models:", error);
-    modelSelect.innerHTML = '<option value="">Error loading models</option>';
-      startNewConversation(); // Ensure UI is usable even if models fail to load
-      renderConversationList();
+    modelSelect.innerHTML = '<option value="">Error loading models</option>'; // Keep basic fallback in select
+    if (error.message.includes("Failed to fetch models")) { // Network or server status error
+        displayModelError(`Could not connect to Ollama server at ${OLLAMA_BASE_URL} to load models. Details: ${error.message}. Please ensure Ollama is running and accessible.`);
+    } else { // Other errors
+        displayModelError(`An unexpected error occurred while loading models: ${error.message}`);
+    }
+    // Attempt to allow UI to function somewhat even if models fail
+    startNewConversation();
+    renderConversationList();
     }
   }
 
@@ -672,12 +720,10 @@ function initSaveConvo() // Call this when a new conversation gets its first mes
     }
 
     conversations.convlist.push(currentConvo);
-    conversations.convunique[currentConvo.ix] = currentConvo; // convunique might be redundant now
     }
   else if (currentConvo.ix >= 0 && currentConvo.ix < conversations.convlist.length) // Existing conversation
     {
     conversations.convlist[currentConvo.ix] = currentConvo;
-    conversations.convunique[currentConvo.ix] = currentConvo;
     }
   // --- FEATURE: Chat Header Update START ---
   currentConversationTitleEl.textContent = currentConvo.name;
@@ -686,12 +732,12 @@ function initSaveConvo() // Call this when a new conversation gets its first mes
   }
 
 
-function appendMessage(role, content, extraClasses = [])
+function appendMessage(role, content, wrapperExtraClasses = [], bubbleExtraClasses = [])
   {
   const wrapper = document.createElement("div");
-  wrapper.className = `message ${role} ${extraClasses.join(' ')}`.trim();
+  wrapper.className = `message ${role} ${wrapperExtraClasses.join(' ')}`.trim();
   const bubble = document.createElement("div");
-  bubble.className = "bubble";
+  bubble.className = `bubble ${bubbleExtraClasses.join(' ')}`.trim();
   bubble.innerHTML = formatMessage(content);
 
   if (role === "user" || role === "assistant")
@@ -944,12 +990,34 @@ async function queryOllama(userPrompt)
   catch (err)
     {
     console.error("Error querying Ollama:", err);
-    if (assistantResponseBubble) { // Check if bubble exists before setting its innerHTML
+    const bubbleErrorClasses = ['error-bubble'];
+    if (assistantResponseBubble) {
         assistantResponseBubble.innerHTML = formatMessage(`Error: ${err.message}`);
-    } else { // If no bubble, create one for the error
-        assistantResponseBubble = appendMessage("assistant", `Error: ${err.message}`);
+        // Ensure existing bubble gets error styling if it was mid-stream and not already an error
+        let bubbleNeedsErrorClass = true;
+        bubbleErrorClasses.forEach(cls => {
+            if (assistantResponseBubble.classList.contains(cls)) {
+                bubbleNeedsErrorClass = false;
+            }
+        });
+        if (bubbleNeedsErrorClass) {
+            bubbleErrorClasses.forEach(cls => assistantResponseBubble.classList.add(cls));
+        }
+
+        // Clear thinking styles from wrapper if present
+        // and ensure bubble doesn't have streaming-response if it's now a static error.
+        if (assistantResponseBubble.parentElement && assistantResponseBubble.parentElement.classList.contains('thinking')) {
+            assistantResponseBubble.parentElement.classList.remove('thinking');
+            // Reset bubble classes to ensure no thinking-specific bubble styles remain
+            assistantResponseBubble.className = 'bubble';
+            bubbleErrorClasses.forEach(cls => assistantResponseBubble.classList.add(cls));
+        }
+        assistantResponseBubble.classList.remove("streaming-response"); // Error messages are not streaming
+    } else {
+        // For a new error message, pass the class to be applied to the bubble
+        assistantResponseBubble = appendMessage("assistant", `Error: ${err.message}`, [], bubbleErrorClasses);
     }
-    fullAssistantResponse = `Error: ${err.message}`; // Ensure error is saved
+    fullAssistantResponse = `Error: ${err.message}`;
     }
   finally
     {
