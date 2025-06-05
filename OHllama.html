@@ -616,12 +616,20 @@ html, body {
   color: var(--text-accent);
 }
 
-/* Adjust chat header title width if toggle button is present */
+/* Use a flex container for the chat header to allow flexible title sizing */
+#chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* adjust as needed for spacing between title and buttons */
+}
+
+/* Allow the title to shrink/grow as needed, but not overflow */
 #chat-header #current-conversation-title {
-  /* Max width needs to account for clear button AND toggle button */
-  /* Original was calc(100% - 160px) for one button. Two buttons ~220px? Adjust as needed. */
-  /* Increased from 220 to 230 to give a bit more space */
-  max-width: calc(100% - 230px);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
 </head>
